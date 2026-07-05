@@ -40,6 +40,54 @@ For this proxy to work, it MUST be able to see your local Google authorization.
 
 ## Setup Instructions
 
+### Option A: Docker (recommended)
+
+Docker runs the proxy and Cloudflare tunnel in an isolated container. You still need an active Antigravity/Cursor session on the host — the container reads your local auth database via a volume mount.
+
+#### 1. Configure the auth database path
+
+Copy the example env file and set the path to your local `state.vscdb`:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set `AUTH_DB_HOST_PATH` to your auth database:
+
+| Platform | Typical path |
+|----------|--------------|
+| macOS (Antigravity) | `~/Library/Application Support/Antigravity/User/globalStorage/state.vscdb` |
+| Linux (Cursor) | `~/.config/Cursor/User/globalStorage/state.vscdb` |
+
+#### 2. Build and start
+
+```bash
+docker compose up --build
+```
+
+Watch the logs for the green rocket message and copy the **Base URL** (e.g. `https://random-words.trycloudflare.com/v1`).
+
+#### 3. Configure Cursor
+
+Follow the same Cursor configuration steps described in [Configure Cursor](#3-configure-cursor) below.
+
+#### Docker commands
+
+```bash
+# Start in background
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
+```
+
+---
+
+### Option B: Local installation
+
 ### 1. Installation
 First, install dependencies. This will automatically download the correct `cloudflared` binary for your OS:
 ```bash
@@ -74,6 +122,8 @@ In the Cursor sidebar or Composer, select one of these IDs:
 *   **400 Error (Missing Thought Signature)**: This is fixed! Ensure you are running the latest version of this proxy.
 *   **Invalid URL Error**: This means your tunnel URL has changed or expired. Restart the proxy and copy the new URL from the terminal.
 *   **EADDRINUSE**: If you see "Address already in use", run `lsof -t -i:3000 | xargs kill -9` to clear the previous process.
+*   **Docker: Auth status not found**: Verify `AUTH_DB_HOST_PATH` in `.env` points to your real `state.vscdb` file and that you are logged into Antigravity/Cursor on the host.
+*   **Docker: `AUTH_DB_HOST_PATH` required**: Create `.env` from `.env.example` before running `docker compose up`.
 
 ---
 *Created for the Antigravity Team. Powered by Google Deepmind.*

@@ -659,7 +659,7 @@ app.post(['/v1/chat/completions', '/chat/completions'], async (req, res) => {
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
+const PORT = Number(process.env.PORT) || 3000;
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Antigravity Proxy listening on port ${PORT}`);
 });

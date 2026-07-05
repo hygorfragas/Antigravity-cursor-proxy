@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 const TUNNEL_TOKEN = ''; // No longer used for Quick Tunnels
+const PROXY_PORT = Number(process.env.PORT) || 3000;
 
 console.log('--- Starting Antigravity Proxy & Persistent Tunnel ---');
 
@@ -13,7 +14,7 @@ const proxy = spawn('node', ['proxy.cjs'], {
 
 // 2. Start Cloudflare Tunnel (Quick mode for random reliable URL)
 const cloudflaredPath = path.join(__dirname, 'cloudflared');
-const tunnel = spawn(cloudflaredPath, ['tunnel', '--url', 'http://localhost:3000'], {
+const tunnel = spawn(cloudflaredPath, ['tunnel', '--url', `http://localhost:${PROXY_PORT}`], {
     cwd: __dirname
 });
 

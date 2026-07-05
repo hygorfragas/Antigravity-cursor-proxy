@@ -1,0 +1,12 @@
+services:
+  antigravity-proxy:
+    build: .
+    container_name: antigravity-proxy
+    ports:
+      - "${PROXY_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      AUTH_DB_PATH: /data/auth/state.vscdb
+    volumes:
+      - ${AUTH_DB_HOST_PATH:?Set AUTH_DB_HOST_PATH in .env to your local state.vscdb file}:/data/auth/state.vscdb:ro
+    restart: unless-stopped
