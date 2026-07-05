@@ -77,6 +77,10 @@ const MODELS_INFO = [
 
 // Root status page
 app.get('/', (req, res) => {
+    const publicBaseUrl = process.env.PUBLIC_BASE_URL?.replace(/\/$/, '');
+    const port = Number(process.env.PORT) || 3000;
+    const baseUrlLabel = publicBaseUrl ? `${publicBaseUrl}/v1` : `/v1`;
+
     const modelCards = MODELS_INFO.map(m => `
         <div style="background: #1a1b1e; border: 1px solid #333; padding: 15px; border-radius: 10px; margin: 10px 0; display: flex; align-items: center; gap: 15px;">
             <div style="font-size: 24px;">${m.icon}</div>
@@ -96,15 +100,15 @@ app.get('/', (req, res) => {
                     <p style="text-align: center; color: #888; margin-bottom: 30px;">Your upgraded gateway to Google's Deepmind models.</p>
                     
                     <div style="background: #16171d; border: 1px solid #333; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                        <div style="font-weight: bold; margin-bottom: 10px; color: #00ff88;">✓ Proxy Connection Stable (Sandbox)</div>
-                        <div style="font-size: 14px;">Base URL: <code style="background: #000; padding: 3px 6px; border-radius: 4px;">/v1</code></div>
+                        <div style="font-weight: bold; margin-bottom: 10px; color: #00ff88;">✓ Proxy Connection Stable</div>
+                        <div style="font-size: 14px;">Base URL: <code style="background: #000; padding: 3px 6px; border-radius: 4px;">${baseUrlLabel}</code></div>
                     </div>
 
                     <h3 style="margin-left: 5px; margin-bottom: 10px;">Available Models</h3>
                     ${modelCards}
 
                     <div style="text-align: center; padding: 20px; color: #555; font-size: 12px;">
-                        Antigravity Proxy v1.2.1 • Running on Local Port 3000
+                        Antigravity Proxy v1.2.1 • Running on port ${port}
                     </div>
                 </div>
             </body>
@@ -659,7 +663,7 @@ app.post(['/v1/chat/completions', '/chat/completions'], async (req, res) => {
     }
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
+const PORT = Number(process.env.PORT) || 3000;
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Antigravity Proxy listening on port ${PORT}`);
 });

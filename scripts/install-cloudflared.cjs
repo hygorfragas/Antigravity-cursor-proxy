@@ -9,6 +9,11 @@ const TARGET_DIR = path.join(__dirname, '..');
 const TARGET_PATH = path.join(TARGET_DIR, BINARY_NAME);
 
 // Check if already installed
+if (process.env.SKIP_CLOUDFLARED === '1' || process.env.SKIP_CLOUDFLARED === 'true') {
+    console.log('⏭️  SKIP_CLOUDFLARED set. Skipping cloudflared download.');
+    process.exit(0);
+}
+
 if (fs.existsSync(TARGET_PATH)) {
     console.log('✅ cloudflared binary already exists. Skipping download.');
     process.exit(0);

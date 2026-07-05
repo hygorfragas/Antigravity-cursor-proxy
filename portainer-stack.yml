@@ -1,0 +1,14 @@
+services:
+  antigravity-proxy:
+    image: hygorfragas/antigravity-proxy:latest
+    container_name: antigravity-proxy
+    restart: unless-stopped
+    ports:
+      - "3010:3000"
+    environment:
+      PORT: "3000"
+      AUTH_DB_PATH: "/data/auth/state.vscdb"
+      ENABLE_QUICK_TUNNEL: "false"
+      PUBLIC_BASE_URL: "https://antigravity.flowkaze.com.br"
+    volumes:
+      - /caminho/para/seu/state.vscdb:/data/auth/state.vscdb:ro

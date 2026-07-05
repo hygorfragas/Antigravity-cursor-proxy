@@ -1,8 +1,31 @@
 const { execSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const DB_PATH = path.join(os.homedir(), 'Library/Application Support/Antigravity/User/globalStorage/state.vscdb');
+function resolveAuthDbPath() {
+    if (process.env.AUTH_DB_PATH) {
+        return process.env.AUTH_DB_PATH;
+    }
+
+    const home = os.homedir();
+    const candidates = [
+        path.join(home, 'Library/Application Support/Antigravity/User/globalStorage/state.vscdb'),
+        path.join(home, '.config/Antigravity/User/globalStorage/state.vscdb'),
+        path.join(home, '.config/Cursor/User/globalStorage/state.vscdb'),
+        '/data/auth/state.vscdb'
+    ];
+
+    for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return candidates[0];
+}
+
+const DB_PATH = resolveAuthDbPath();
 
 function getAuthStatus() {
     try {
