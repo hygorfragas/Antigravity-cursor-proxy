@@ -79,6 +79,7 @@ Restart/reload the connector after editing the config.
 
 | Platform | Typical path |
 |----------|--------------|
+| macOS (Antigravity IDE) | `/Users/SEU_USUARIO/Library/Application Support/Antigravity IDE/User/globalStorage/state.vscdb` |
 | macOS (Antigravity) | `/Users/SEU_USUARIO/Library/Application Support/Antigravity/User/globalStorage/state.vscdb` |
 | Linux (Cursor) | `/home/SEU_USUARIO/.config/Cursor/User/globalStorage/state.vscdb` |
 
