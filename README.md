@@ -16,18 +16,20 @@ Google's advanced agentic models (internal versions of Gemini/Claude) use a spec
 
 ---
 
-## 🛠️ How it Works: The Cloudflare Tunnel
-When you run `npm start`, the engine launches two processes:
+## 🛠️ How it Works
+
+### Local mode (`npm start`)
+When you run `npm start` locally, the engine launches two processes:
 1.  **Local Proxy Server**: Runs on `localhost:3000`.
 2.  **Cloudflare Quick Tunnel**: Creates a secure, temporary HTTPS bridge from the internet's edge directly to your local proxy.
 
-### Why is the Tunnel necessary?
-*   **HTTPS Requirement**: High-security IDEs like Cursor often require a valid, trusted HTTPS endpoint to talk to custom models.
-*   **Zero-Config Networking**: It allows the proxy to work through firewalls and VPNs without you having to open any ports or touch router settings.
-*   **Security**: The tunnel provides a random, difficult-to-guess URL that is only active while your process is running.
-
 > [!CAUTION]
-> **Dynamic URLs**: Because we are using Cloudflare's *Quick Tunnel* mode (free version), a **fresh URL is generated every time you restart the script**. You will need to update the URL in Cursor whenever the terminal shows a new one.
+> **Dynamic URLs**: Quick Tunnel mode generates a **fresh URL every restart**. Update Cursor whenever the terminal shows a new one.
+
+### Production mode (Docker + cloudflared connector)
+For Portainer/VPS setups with an existing **cloudflared connector** and custom DNS (e.g. `antigravity.flowkaze.com.br`), the container runs **only the proxy**. Your external connector routes HTTPS traffic to the container port on your local machine.
+
+Published image: **`hygorfragas/antigravity-proxy:latest`**
 
 ---
 
@@ -40,90 +42,148 @@ For this proxy to work, it MUST be able to see your local Google authorization.
 
 ## Setup Instructions
 
-### Option A: Docker (recommended)
+### Option A: Portainer + cloudflared connector (recommended for VPS/homelab)
 
-Docker runs the proxy and Cloudflare tunnel in an isolated container. You still need an active Antigravity/Cursor session on the host — the container reads your local auth database via a volume mount.
+Use this when you already have a **cloudflared connector** on your VPS routing subdomains of `flowkaze.com.br` to containers on your local machine.
 
-#### 1. Configure the auth database path
+#### 1. Configure DNS (if not already done)
 
-Copy the example env file and set the path to your local `state.vscdb`:
+In Cloudflare DNS, create a CNAME for your subdomain pointing to your tunnel:
 
-```bash
-cp .env.example .env
+```
+antigravity.flowkaze.com.br  →  <tunnel-id>.cfargotunnel.com
 ```
 
-Edit `.env` and set `AUTH_DB_HOST_PATH` to your auth database:
+#### 2. Add ingress rule on your cloudflared connector
+
+On the VPS where your connector runs, add an ingress entry **before** the catch-all rule:
+
+```yaml
+ingress:
+  - hostname: antigravity.flowkaze.com.br
+    service: http://IP_DA_SUA_MAQUINA_LOCAL:3010
+  # ... seus outros serviços (clinica.flowkaze.com.br, etc.)
+  - service: http_status:404
+```
+
+> Replace `IP_DA_SUA_MAQUINA_LOCAL` with the LAN IP of the machine running Portainer (e.g. `192.168.1.50`). Port `3010` is the host port mapped to the container.
+
+Restart/reload the connector after editing the config.
+
+#### 3. Deploy stack in Portainer
+
+1. Open **Portainer** → **Stacks** → **Add stack**
+2. Name: `antigravity-proxy`
+3. Paste the contents of [`portainer-stack.yml`](portainer-stack.yml)
+4. Edit the volume path to your real `state.vscdb` file:
 
 | Platform | Typical path |
 |----------|--------------|
-| macOS (Antigravity) | `~/Library/Application Support/Antigravity/User/globalStorage/state.vscdb` |
-| Linux (Cursor) | `~/.config/Cursor/User/globalStorage/state.vscdb` |
+| macOS (Antigravity) | `/Users/SEU_USUARIO/Library/Application Support/Antigravity/User/globalStorage/state.vscdb` |
+| Linux (Cursor) | `/home/SEU_USUARIO/.config/Cursor/User/globalStorage/state.vscdb` |
 
-#### 2. Build and start
+5. Adjust `PUBLIC_BASE_URL` if using a different subdomain
+6. Deploy the stack
+
+Or pull the image directly:
 
 ```bash
-docker compose up --build
+docker pull hygorfragas/antigravity-proxy:latest
 ```
 
-Watch the logs for the green rocket message and copy the **Base URL** (e.g. `https://random-words.trycloudflare.com/v1`).
+#### 4. Verify
 
-#### 3. Configure Cursor
+- Container logs should show: `Base URL for Cursor: https://antigravity.flowkaze.com.br/v1`
+- Open `https://antigravity.flowkaze.com.br` in browser — you should see the proxy status page
+- Test API: `curl https://antigravity.flowkaze.com.br/v1/models`
 
-Follow the same Cursor configuration steps described in [Configure Cursor](#3-configure-cursor) below.
+#### 5. Configure Cursor
 
-#### Docker commands
+1. Open **Cursor Settings** (`Cmd + Shift + J` or gear icon)
+2. Go to **Models** → **OpenAI**
+3. Enable **"Override OpenAI Base URL"**
+4. Set Base URL to: `https://antigravity.flowkaze.com.br/v1`
+5. API Key: any placeholder (e.g. `antigravity`) — auth comes from your local session
+6. Restart Cursor
+
+#### 6. Model Selection
+
+In Cursor sidebar or Composer, select:
+*   `ag-pro` — Gemini 3 Pro
+*   `ag-flash` — Gemini 3 Flash
+*   `ag-sonnet` — Claude 4.5 Sonnet
+*   `ag-opus` — Claude 4.5 Opus
+*   `ag-haiku` — Gemini 2.5 Lite
+
+---
+
+### Option B: Docker Compose (local build)
 
 ```bash
-# Start in background
-docker compose up -d --build
-
-# View logs
-docker compose logs -f
-
-# Stop
-docker compose down
+cp .env.example .env
+# Edit AUTH_DB_HOST_PATH and PUBLIC_BASE_URL
+docker compose up -d
 ```
 
 ---
 
-### Option B: Local installation
+### Option C: Local installation (Quick Tunnel)
 
-### 1. Installation
-First, install dependencies. This will automatically download the correct `cloudflared` binary for your OS:
+#### 1. Installation
 ```bash
 npm install
 ```
 
-### 2. Start the Proxy
-In your terminal, run:
+#### 2. Start the Proxy
 ```bash
 npm start
 ```
-Watch for the big green rocket icon. Copy the **Base URL** (e.g., `https://random-words.trycloudflare.com/v1`).
+Watch for the green rocket icon. Copy the **Base URL** (e.g., `https://random-words.trycloudflare.com/v1`).
 
-### 3. Configure Cursor
-1.  Open **Cursor Settings** (`Cmd + Shift + J` or Click the gear icon).
-2.  Go to **Models** > **OpenAI**.
-3.  **CRITICAL**: Enable the **"Override OpenAI Base URL"** toggle.
-4.  Paste your **New Base URL** into the field.
-5.  (Optional but Recommended) **Restart Cursor** to ensure the new networking configuration is fully picked up by the internal AI engine.
+#### 3. Configure Cursor
+1. Open **Cursor Settings** (`Cmd + Shift + J` or Click the gear icon).
+2. Go to **Models** > **OpenAI**.
+3. **CRITICAL**: Enable the **"Override OpenAI Base URL"** toggle.
+4. Paste your **New Base URL** into the field.
+5. (Optional but Recommended) **Restart Cursor** to ensure the new networking configuration is fully picked up by the internal AI engine.
 
-### 4. Model Selection
-In the Cursor sidebar or Composer, select one of these IDs:
-*   `ag-pro`: Gemini 3 Pro (High intelligence, architecture).
-*   `ag-flash`: Gemini 3 Flash (Sub-second latency, quick edits).
-*   `ag-sonnet`: Claude 4.5 Sonnet (Thinking model, deep reasoning).
-*   `ag-opus`: Claude 4.5 Opus (Maximum logic, complex debugging).
-*   `ag-haiku`: Gemini 2.5 Lite (Fast and efficient).
+---
+
+## Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | Internal proxy port |
+| `AUTH_DB_PATH` | auto-detect | Path to `state.vscdb` inside the container |
+| `ENABLE_QUICK_TUNNEL` | `true` (local), `false` (Docker) | Run embedded cloudflared quick tunnel |
+| `PUBLIC_BASE_URL` | — | Public HTTPS URL shown in logs (e.g. `https://antigravity.flowkaze.com.br`) |
+| `PROXY_HOST_PORT` | `3010` | Host port mapped in docker-compose |
+
+---
+
+## Publish Docker image (maintainers)
+
+GitHub Actions workflow builds and pushes to Docker Hub on push to `main` or tags `v*`.
+
+Required repository secrets:
+- `DOCKERHUB_USERNAME` → `hygorfragas`
+- `DOCKERHUB_TOKEN` → Docker Hub access token
+
+Manual build:
+```bash
+docker build -t hygorfragas/antigravity-proxy:latest .
+docker push hygorfragas/antigravity-proxy:latest
+```
 
 ---
 
 ## ⚠️ Troubleshooting
-*   **400 Error (Missing Thought Signature)**: This is fixed! Ensure you are running the latest version of this proxy.
-*   **Invalid URL Error**: This means your tunnel URL has changed or expired. Restart the proxy and copy the new URL from the terminal.
-*   **EADDRINUSE**: If you see "Address already in use", run `lsof -t -i:3000 | xargs kill -9` to clear the previous process.
-*   **Docker: Auth status not found**: Verify `AUTH_DB_HOST_PATH` in `.env` points to your real `state.vscdb` file and that you are logged into Antigravity/Cursor on the host.
-*   **Docker: `AUTH_DB_HOST_PATH` required**: Create `.env` from `.env.example` before running `docker compose up`.
+*   **400 Error (Missing Thought Signature)**: Ensure you are running the latest version of this proxy.
+*   **Invalid URL Error**: In Quick Tunnel mode, restart and copy the new URL. With external connector, verify DNS and ingress config.
+*   **EADDRINUSE**: Run `lsof -t -i:3010 | xargs kill -9` or change `PROXY_HOST_PORT`.
+*   **Docker: Auth status not found**: Verify the volume mount points to your real `state.vscdb` and you are logged into Antigravity/Cursor on the host.
+*   **502 from Cloudflare**: Connector cannot reach your machine — check LAN IP, firewall, and that Portainer mapped port `3010`.
+*   **Cursor cannot connect**: Confirm `https://SEU_SUBDOMINIO.flowkaze.com.br/v1/models` returns JSON in browser/curl.
 
 ---
 *Created for the Antigravity Team. Powered by Google Deepmind.*
