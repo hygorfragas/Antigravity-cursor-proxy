@@ -5,8 +5,20 @@ const os = require('os');
 
 const AUTH_KEYS = [
     'antigravityAuthStatus',
-    'antigravityUnifiedStateSync.oauthToken'
+    'antigravityUnifiedStateSync.oauthToken',
+    'antigravityUnifiedStateSync.userStatus'
 ];
+
+const TOKEN_FIELDS = [
+    'apiKey',
+    'access_token',
+    'accessToken',
+    'token',
+    'oauthToken',
+    'idToken'
+];
+
+const EMAIL_FIELDS = ['email', 'userEmail', 'account', 'user'];
 
 function resolveAuthDbPath() {
     if (process.env.AUTH_DB_PATH) {
@@ -39,15 +51,70 @@ function readDbValue(key) {
     return execSync(cmd).toString().trim();
 }
 
-function normalizeAuthData(raw) {
+function parseJsonValue(raw) {
     if (!raw) return null;
 
-    const data = JSON.parse(raw);
-    const apiKey = data.apiKey || data.access_token || data.accessToken || data.token;
+    let current = raw;
+    for (let i = 0; i < 3; i += 1) {
+        if (typeof current !== 'string') break;
+        try {
+            current = JSON.parse(current);
+        } catch {
+            break;
+        }
+    }
+
+    return typeof current === 'object' && current !== null ? current : null;
+}
+
+function findEmail(data, depth = 0) {
+    if (!data || depth > 6) return null;
+
+    if (typeof data === 'object') {
+        for (const field of EMAIL_FIELDS) {
+            if (typeof data[field] === 'string' && data[field].includes('@')) {
+                return data[field];
+            }
+        }
+
+        for (const value of Object.values(data)) {
+            const found = findEmail(value, depth + 1);
+            if (found) return found;
+        }
+    }
+
+    return null;
+}
+
+function findToken(data, depth = 0) {
+    if (!data || depth > 6) return null;
+
+    if (typeof data === 'object') {
+        for (const field of TOKEN_FIELDS) {
+            const value = data[field];
+            if (typeof value === 'string' && value.length >= 20) {
+                return value;
+            }
+        }
+
+        for (const value of Object.values(data)) {
+            const found = findToken(value, depth + 1);
+            if (found) return found;
+        }
+    }
+
+    return null;
+}
+
+function normalizeAuthData(raw) {
+    const data = parseJsonValue(raw);
+    if (!data) return null;
+
+    const apiKey = findToken(data);
     if (!apiKey) return null;
 
     return {
-        email: data.email || data.userEmail || data.account || 'unknown',
+        email: findEmail(data) || 'unknown',
         apiKey
     };
 }
